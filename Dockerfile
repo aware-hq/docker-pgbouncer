@@ -1,20 +1,22 @@
-FROM alpine:3.17
+ARG ALPINE_VERSION 3.18
+
+FROM alpine:$ALPINE_VERSION
 ARG VERSION=1.19.1
 
 # Inspiration from https://github.com/gmr/alpine-pgbouncer/blob/master/Dockerfile
 # hadolint ignore=DL3003,DL3018
 RUN \
   # security
-  apk add -U --no-cache --upgrade busybox && \
+  apk add -U --no-cache --upgrade busybox ca-certificates && \
   # Download
-  apk add -U --no-cache autoconf autoconf-doc automake udns udns-dev curl gcc libc-dev libevent libevent-dev libtool make openssl-dev pkgconfig postgresql-client && \
+  apk add -U --no-cache autoconf automake build-base curl libevent libevent-dev libtool make libressl libressl-dev pkgconfig postgresql-client && \
   curl -o  /tmp/pgbouncer-$VERSION.tar.gz -L https://pgbouncer.github.io/downloads/files/$VERSION/pgbouncer-$VERSION.tar.gz && \
   cd /tmp && \
   # Unpack, compile
   tar xvfz /tmp/pgbouncer-$VERSION.tar.gz && \
   cd pgbouncer-$VERSION && \
-  ./configure --prefix=/usr --with-udns && \
-  make && \
+  ./configure --prefix=/usr --enable-cassert --enable-werror && \
+  make -j 4 && \
   # Manual install
   cp pgbouncer /usr/bin && \
   mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer && \
@@ -22,11 +24,12 @@ RUN \
   cp etc/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini.example && \
   cp etc/userlist.txt /etc/pgbouncer/userlist.txt.example && \
   touch /etc/pgbouncer/userlist.txt && \
+  (getent passwd postgres || adduser -DS postgres) && \
   chown -R postgres /var/run/pgbouncer /etc/pgbouncer && \
   # Cleanup
   cd /tmp && \
   rm -rf /tmp/pgbouncer*  && \
-  apk del --purge autoconf autoconf-doc automake udns-dev curl gcc libc-dev libevent-dev libtool make openssl-dev pkgconfig
+  apk del --purge autoconf automake curl build-base libevent-dev libtool make openssl-dev pkgconfig
 
 COPY entrypoint.sh /entrypoint.sh
 USER postgres
