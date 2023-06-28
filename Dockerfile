@@ -1,20 +1,29 @@
-FROM alpine:3.17
+ARG ALPINE_VERSION=3.18
+
+FROM alpine:$ALPINE_VERSION
 ARG VERSION=1.19.1
+
+ADD patches/* /tmp/patches
 
 # Inspiration from https://github.com/gmr/alpine-pgbouncer/blob/master/Dockerfile
 # hadolint ignore=DL3003,DL3018
 RUN \
   # security
-  apk add -U --no-cache --upgrade busybox && \
+  apk add -U --no-cache --upgrade busybox ca-certificates && \
   # Download
-  apk add -U --no-cache autoconf autoconf-doc automake udns udns-dev curl gcc libc-dev libevent libevent-dev libtool make openssl-dev pkgconfig postgresql-client && \
+  apk add -U --no-cache autoconf automake build-base curl libevent libevent-dev libtool make openssl openssl-dev pkgconfig postgresql-client && \
+  curl -sv "http://www.microsoft.com/pkiops/certs/Microsoft%20Azure%20TLS%20Issuing%20CA%2002%20-%20xsign.crt" \
+    | openssl x509 > /usr/local/share/ca-certificates/azure_ca_tls02.pem && \
+  update-ca-certificates && \
   curl -o  /tmp/pgbouncer-$VERSION.tar.gz -L https://pgbouncer.github.io/downloads/files/$VERSION/pgbouncer-$VERSION.tar.gz && \
   cd /tmp && \
   # Unpack, compile
   tar xvfz /tmp/pgbouncer-$VERSION.tar.gz && \
   cd pgbouncer-$VERSION && \
-  ./configure --prefix=/usr --with-udns && \
-  make && \
+  find /tmp/patches -type f -print0 | xargs -I{} -0 sh -c "patch -p0 < '{}'"&& \
+  cat src/sbuf.c && \
+  ./configure --prefix=/usr --enable-cassert --enable-werror && \
+  make -j 4 && \
   # Manual install
   cp pgbouncer /usr/bin && \
   mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer && \
@@ -22,11 +31,12 @@ RUN \
   cp etc/pgbouncer.ini /etc/pgbouncer/pgbouncer.ini.example && \
   cp etc/userlist.txt /etc/pgbouncer/userlist.txt.example && \
   touch /etc/pgbouncer/userlist.txt && \
+  (getent passwd postgres || adduser -DS postgres) && \
   chown -R postgres /var/run/pgbouncer /etc/pgbouncer && \
   # Cleanup
   cd /tmp && \
   rm -rf /tmp/pgbouncer*  && \
-  apk del --purge autoconf autoconf-doc automake udns-dev curl gcc libc-dev libevent-dev libtool make openssl-dev pkgconfig
+  apk del --purge autoconf automake curl build-base libevent-dev libtool make openssl-dev pkgconfig
 
 COPY entrypoint.sh /entrypoint.sh
 USER postgres
