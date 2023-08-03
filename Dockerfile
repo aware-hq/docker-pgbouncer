@@ -1,7 +1,7 @@
 ARG ALPINE_VERSION=3.18
 
 FROM alpine:$ALPINE_VERSION
-ARG VERSION=1.19.1
+ARG VERSION=1.20.0
 
 ADD patches/* /tmp/patches
 
