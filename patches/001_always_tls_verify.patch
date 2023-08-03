@@ -1,0 +1,39 @@
+*** src/sbuf.c	2023-07-07 10:37:00.000000000 -0400
+--- src/sbuf.c	2023-07-07 10:35:43.000000000 -0400
+***************
+*** 946,960 ****
+  
+  	if (does_connect) {
+  		/* TLS client, check server? */
+! 		if (sslmode == SSLMODE_VERIFY_FULL) {
+! 			tls_config_verify(conf);
+! 		} else if (sslmode == SSLMODE_VERIFY_CA) {
+! 			tls_config_verify(conf);
+! 			tls_config_insecure_noverifyname(conf);
+! 		} else {
+! 			tls_config_insecure_noverifycert(conf);
+! 			tls_config_insecure_noverifyname(conf);
+! 		}
+  	} else {
+  		/* TLS server, check client? */
+  		if (sslmode == SSLMODE_VERIFY_FULL) {
+--- 946,952 ----
+  
+  	if (does_connect) {
+  		/* TLS client, check server? */
+! 		tls_config_verify(conf);
+  	} else {
+  		/* TLS server, check client? */
+  		if (sslmode == SSLMODE_VERIFY_FULL) {
+***************
+*** 1150,1158 ****
+  	if (!sbuf_pause(sbuf))
+  		return false;
+  
+- 	if (cf_server_tls_sslmode != SSLMODE_VERIFY_FULL)
+- 		hostname = NULL;
+- 
+  	ctls = tls_client();
+  	if (!ctls)
+  		return false;
+--- 1142,1147 ----
